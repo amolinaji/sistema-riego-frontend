@@ -200,8 +200,12 @@ export default function IrrigationControlPanel() {
 
   // Create or update chart
   const updateChart = useCallback(() => {
+    if (!chartRef.current) {
+      console.warn("El canvas aún no está montado. Esperando...");
+      return;
+    }
+
     if (
-      !chartRef.current ||
       !humidityData ||
       !Array.isArray(humidityData) ||
       humidityData.length === 0
@@ -209,19 +213,28 @@ export default function IrrigationControlPanel() {
       console.warn("Datos de humedad no válidos o vacíos");
       return;
     }
-    // Destruir el gráfico existente si hay uno
+
+    // Destruir gráfico anterior si existe
     if (chartInstanceRef.current) {
       chartInstanceRef.current.destroy();
       chartInstanceRef.current = null; // Resetear la referencia
     }
 
     const ctx = chartRef.current.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) {
+      console.warn("No se pudo obtener el contexto del canvas.");
+      return;
+    }
 
-    // Preparar datos para Chart.js
+    // Filtrar datos inválidos
     const filteredData = humidityData.filter(
       (item) => item.value !== undefined && item.formattedTime !== undefined
     );
+
+    if (filteredData.length === 0) {
+      console.warn("No hay datos válidos para graficar");
+      return;
+    }
 
     const labels = filteredData.map((item) => item.formattedTime);
     const values = filteredData.map((item) => item.value);
@@ -230,7 +243,7 @@ export default function IrrigationControlPanel() {
     chartInstanceRef.current = new Chart(ctx, {
       type: "line",
       data: {
-        labels: labels,
+        labels,
         datasets: [
           {
             label: "Humedad (%)",
@@ -258,86 +271,23 @@ export default function IrrigationControlPanel() {
           title: {
             display: true,
             text: "Gráfico de Humedad",
-            font: {
-              size: 16,
-              weight: "bold",
-            },
+            font: { size: 16, weight: "bold" },
             color: "#0369a1",
-            padding: {
-              top: 10,
-              bottom: 20,
-            },
+            padding: { top: 10, bottom: 20 },
           },
           tooltip: {
             mode: "index",
             intersect: false,
-            backgroundColor: "rgba(255, 255, 255, 0.9)",
-            titleColor: "#1e293b",
-            bodyColor: "#1e293b",
-            borderColor: "#e2e8f0",
-            borderWidth: 1,
-            padding: 10,
-            displayColors: true,
             callbacks: {
               label: (context) => `Humedad: ${context.parsed.y}%`,
             },
           },
-          legend: {
-            display: true,
-            position: "top",
-            labels: {
-              font: {
-                size: 12,
-              },
-              color: "#1e293b",
-            },
-          },
+          legend: { display: true, position: "top" },
         },
         scales: {
-          x: {
-            title: {
-              display: true,
-              text: "Hora",
-              font: {
-                size: 14,
-                weight: "bold",
-              },
-              color: "#1e293b",
-              padding: {
-                top: 10,
-              },
-            },
-            grid: {
-              display: true,
-              color: "#e2e8f0",
-            },
-            ticks: {
-              color: "#64748b",
-              maxRotation: 45,
-              minRotation: 0,
-            },
-          },
+          x: { title: { display: true, text: "Hora" } },
           y: {
-            title: {
-              display: true,
-              text: "Humedad (%)",
-              font: {
-                size: 14,
-                weight: "bold",
-              },
-              color: "#1e293b",
-              padding: {
-                bottom: 10,
-              },
-            },
-            grid: {
-              display: true,
-              color: "#e2e8f0",
-            },
-            ticks: {
-              color: "#64748b",
-              stepSize: 10,
-            },
+            title: { display: true, text: "Humedad (%)" },
             min: 0,
             max: 100,
           },
@@ -533,16 +483,15 @@ export default function IrrigationControlPanel() {
 
   // Update chart when data changes
   useEffect(() => {
-    updateChart();
-
-    // Set up resize event listener
-    const handleResize = () => {
-      updateChart();
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [updateChart]);
+    if (chartRef.current && humidityData.length > 0) {
+      console.log(humidityData);
+      setTimeout(() => {
+        updateChart();
+      }, 500);
+    } else {
+      console.warn("Canvas aún no está disponible o no hay datos");
+    }
+  }, [humidityData, updateChart]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-blue-50 p-4 md:p-8">
