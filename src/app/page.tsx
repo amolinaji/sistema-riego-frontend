@@ -200,19 +200,31 @@ export default function IrrigationControlPanel() {
 
   // Create or update chart
   const updateChart = useCallback(() => {
-    if (!chartRef.current || humidityData.length === 0) return;
-
+    if (
+      !chartRef.current ||
+      !humidityData ||
+      !Array.isArray(humidityData) ||
+      humidityData.length === 0
+    ) {
+      console.warn("Datos de humedad no válidos o vacíos");
+      return;
+    }
     // Destruir el gráfico existente si hay uno
     if (chartInstanceRef.current) {
       chartInstanceRef.current.destroy();
+      chartInstanceRef.current = null; // Resetear la referencia
     }
 
     const ctx = chartRef.current.getContext("2d");
     if (!ctx) return;
 
     // Preparar datos para Chart.js
-    const labels = humidityData.map((item) => item.formattedTime || "");
-    const values = humidityData.map((item) => item.value);
+    const filteredData = humidityData.filter(
+      (item) => item.value !== undefined && item.formattedTime !== undefined
+    );
+
+    const labels = filteredData.map((item) => item.formattedTime);
+    const values = filteredData.map((item) => item.value);
 
     // Crear un nuevo gráfico
     chartInstanceRef.current = new Chart(ctx, {
@@ -530,7 +542,7 @@ export default function IrrigationControlPanel() {
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [updateChart]);
+  }, [updateChart, humidityData]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-blue-50 p-4 md:p-8">
